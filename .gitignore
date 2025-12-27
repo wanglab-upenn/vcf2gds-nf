@@ -1,0 +1,6 @@
+work
+.nextflow
+results
+*.csv
+*.vcf.*
+.nextflow*
