@@ -27,9 +27,10 @@ workflow {
         vcf_ch = Channel.fromPath(params.input, checkIfExists: true)
     }
 
-    // Stage VCF with its index file (.tbi or .csi)
+    // Stage VCF with its index file (.csi)
     vcf_with_index_ch = vcf_ch.map { vcf ->
-        tuple(vcf, file("${vcf}.csi", checkIfExists: true))
+         def csi = file("${vcf}.csi")
+        return csi.exists() ? tuple(vcf, csi) : tuple(vcf, [])
     }
 
     script_ch = Channel.fromPath(params.script, checkIfExists: true)
@@ -64,9 +65,7 @@ process COUNT_VARIANTS {
         ln -sf ${vcf} "${gz_name}"
 
         # Symlink index too
-        if [[ -f ${vcf}.tbi ]]; then
-            ln -sf ${vcf}.tbi "${gz_name}.tbi"
-        elif [[ -f ${vcf}.csi ]]; then
+        if [[ -f ${vcf}.csi ]]; then
             ln -sf ${vcf}.csi "${gz_name}.csi"
         else
             echo "Missing index"
@@ -77,7 +76,7 @@ process COUNT_VARIANTS {
         variant_count=\$(bcftools index --nrecords "${gz_name}")
     else
         # Standard .gz handling
-        if [[ ! -f ${vcf}.csi && ! -f ${vcf}.tbi ]]; then
+        if [[ ! -f ${vcf}.csi ]]; then
             echo "Missing index"
             echo "Creating index"
             bcftools index ${vcf}
