@@ -4,7 +4,7 @@ nextflow.enable.dsl = 2
 
 params.input = null          // S3 glob pattern or samplesheet CSV
 params.outdir = null         // S3 output bucket/path
-params.threads = 6
+params.threads = 3
 params.container = "${HOME}/containers/r-base-gds-fuse-digest.4.5.1.sif"
 params.script = "${moduleDir}/wl_script_R5.varcnt.R"
 
@@ -29,10 +29,7 @@ workflow {
 
     // Stage VCF with its index file (.tbi or .csi)
     vcf_with_index_ch = vcf_ch.map { vcf ->
-        def tbi = file("${vcf}.tbi")
-        def csi = file("${vcf}.csi")
-        def index = tbi.exists() ? tbi : (csi.exists() ? csi : null)
-        return index ? tuple(vcf, index) : tuple(vcf, [])
+        tuple(vcf, file("${vcf}.csi", checkIfExists: true))
     }
 
     script_ch = Channel.fromPath(params.script, checkIfExists: true)
@@ -56,12 +53,38 @@ process COUNT_VARIANTS {
     tuple path(vcf), path(index), env(variant_count)
 
     script:
+    def vcf_name = vcf.name
+    def gz_name = vcf_name.replaceAll(/\.bgz$/, '.gz')
+    def is_bgz = vcf_name.endsWith('.bgz')
     """
-    # Index if needed (handles both .vcf.gz and .vcf.bgz)
-    if [[ ! -f ${vcf}.csi && ! -f ${vcf}.tbi ]]; then
-        bcftools index ${vcf}
+    ls -alLtFh
+
+    if [[ "${is_bgz}" == "true" ]]; then
+        # Symlink .bgz to .gz (bcftools doesn't recognize .bgz)
+        ln -sf ${vcf} "${gz_name}"
+
+        # Symlink index too
+        if [[ -f ${vcf}.tbi ]]; then
+            ln -sf ${vcf}.tbi "${gz_name}.tbi"
+        elif [[ -f ${vcf}.csi ]]; then
+            ln -sf ${vcf}.csi "${gz_name}.csi"
+        else
+            echo "Missing index"
+            echo "Creating index"
+            bcftools index "${gz_name}"
+        fi
+
+        variant_count=\$(bcftools index --nrecords "${gz_name}")
+    else
+        # Standard .gz handling
+        if [[ ! -f ${vcf}.csi && ! -f ${vcf}.tbi ]]; then
+            echo "Missing index"
+            echo "Creating index"
+            bcftools index ${vcf}
+        fi
+        variant_count=\$(bcftools index --nrecords ${vcf})
     fi
-    variant_count=\$(bcftools index --nrecords ${vcf})
+
     """
 }
 
