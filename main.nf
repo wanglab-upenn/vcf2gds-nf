@@ -97,8 +97,7 @@ process CONVERT_TO_GDS {
     start_time=\$(date +%s.%N)
     Rscript ${rscript} ${gds_name} ${params.threads} ${variant_count} ${vcf}
     end_time=\$(date +%s.%N)
-    elapsed=\$(echo "\$end_time - \$start_time" | bc)
-    speed=\$(echo "scale=2; ${variant_count} / \$elapsed" | bc)
-    printf "Conversion speed: %.2f variants/sec\\n" "\$speed"
+    awk -v start="\$start_time" -v end="\$end_time" -v variants="${variant_count}" \
+        'BEGIN { printf "Conversion speed: %.2f variants/sec\\n", variants / (end - start) }'
     """
 }
