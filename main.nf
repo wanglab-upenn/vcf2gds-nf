@@ -29,7 +29,7 @@ workflow {
 
     // Stage VCF with its index file (.csi)
     vcf_with_index_ch = vcf_ch.map { vcf ->
-         tuple(vcf, file("${vcf}.csi"))
+         tuple(vcf, file(vcf.toUriString() + ".csi"))
     }
 
     script_ch = Channel.fromPath(params.script, checkIfExists: true)
