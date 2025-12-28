@@ -94,6 +94,10 @@ process CONVERT_TO_GDS {
     // Handle both .vcf.gz and .vcf.bgz extensions
     gds_name = vcf.name.replaceAll(/\.vcf\.(gz|bgz)$/, '.vcf.gds')
     """
+    start_time=\$(date +%s.%N)
     Rscript ${rscript} ${gds_name} ${params.threads} ${variant_count} ${vcf}
+    end_time=\$(date +%s.%N)
+    awk -v start="\$start_time" -v end="\$end_time" -v variants="${variant_count}" \
+        'BEGIN { printf "Conversion speed: %.2f variants/sec\\n", variants / (end - start) }'
     """
 }
