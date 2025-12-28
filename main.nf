@@ -94,6 +94,11 @@ process CONVERT_TO_GDS {
     // Handle both .vcf.gz and .vcf.bgz extensions
     gds_name = vcf.name.replaceAll(/\.vcf\.(gz|bgz)$/, '.vcf.gds')
     """
+    start_time=\$(date +%s.%N)
     Rscript ${rscript} ${gds_name} ${params.threads} ${variant_count} ${vcf}
+    end_time=\$(date +%s.%N)
+    elapsed=\$(echo "\$end_time - \$start_time" | bc)
+    speed=\$(echo "scale=2; ${variant_count} / \$elapsed" | bc)
+    printf "Conversion speed: %.2f variants/sec\\n" "\$speed"
     """
 }
