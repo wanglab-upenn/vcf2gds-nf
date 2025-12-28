@@ -29,8 +29,7 @@ workflow {
 
     // Stage VCF with its index file (.csi)
     vcf_with_index_ch = vcf_ch.map { vcf ->
-         def csi = file("${vcf}.csi")
-        return csi.exists() ? tuple(vcf, csi) : tuple(vcf, [])
+         tuple(vcf, file("${vcf}.csi"))
     }
 
     script_ch = Channel.fromPath(params.script, checkIfExists: true)
@@ -63,24 +62,9 @@ process COUNT_VARIANTS {
     if [[ "${is_bgz}" == "true" ]]; then
         # Symlink .bgz to .gz (bcftools doesn't recognize .bgz)
         ln -sf ${vcf} "${gz_name}"
-
-        # Symlink index too
-        if [[ -f ${vcf}.csi ]]; then
-            ln -sf ${vcf}.csi "${gz_name}.csi"
-        else
-            echo "Missing index"
-            echo "Creating index"
-            bcftools index "${gz_name}"
-        fi
-
+        ln -sf ${index} "${gz_name}.csi"
         variant_count=\$(bcftools index --nrecords "${gz_name}")
     else
-        # Standard .gz handling
-        if [[ ! -f ${vcf}.csi ]]; then
-            echo "Missing index"
-            echo "Creating index"
-            bcftools index ${vcf}
-        fi
         variant_count=\$(bcftools index --nrecords ${vcf})
     fi
 
