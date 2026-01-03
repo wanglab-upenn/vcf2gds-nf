@@ -128,7 +128,7 @@ process CONVERT_TO_GDS {
 
     container params.container
 
-    publishDir "results", mode: 'copy'
+    publishDir "${params.outdir}", mode: 'copy'
 
     input:
     tuple path(vcf), path(index), val(variant_count)
