@@ -142,7 +142,23 @@ process CONVERT_TO_GDS {
     gds_name = vcf.name.replaceAll(/\.vcf\.(gz|bgz)$/, '.vcf.gds')
     """
     start_time=\$(date +%s.%N)
+
+    # Background monitor that prints progress to stdout
+    (
+    sleep 1h
+    while ls *.progress.txt &>/dev/null; do
+       for f in *.progress.txt; do
+              echo "[\$(date +%H:%M:%S)] \$f: \$(tail -n 1 \$f)"
+       done
+       sleep 1h
+    done
+    ) &
+    MONITOR_PID=\$!
+
     Rscript ${rscript} ${gds_name} ${params.threads} ${variant_count} ${vcf}
+
+    kill \$MONITOR_PID 2>/dev/null || true
+
     end_time=\$(date +%s.%N)
     awk -v start="\$start_time" -v end="\$end_time" -v variants="${variant_count}" \
         'BEGIN { printf "Conversion speed: %.2f variants/sec\\n", variants / (end - start) }'
